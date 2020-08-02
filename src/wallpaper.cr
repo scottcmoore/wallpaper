@@ -1,8 +1,7 @@
 require "option_parser"
 require "http/client"
 require "json"
-require "file"
-require "process"
+
 
 # This fetches a random image from Unsplash, potentially accepting some search
 # terms, and sets it as the wallpaper for a Ubuntu system.
@@ -25,14 +24,21 @@ module Wallpaper
       end
     end
   end
-
+  
   url = JSON.parse(HTTP::Client.get("#{BASE_URL}").body)["urls"]["full"]
 
   image = HTTP::Client.get(url.to_s) do |response|
     # Gnome does not refresh the background if the filename doesn't change!
     File.write("#{RAND}.jpeg", response.body_io, 0o444)
     path = File.expand_path("#{RAND}.jpeg")
-    `gsettings set org.gnome.desktop.background picture-uri file://#{path}`
+    process = Process.new("gsettings",  ["set", "org.gnome.desktop.background", "picture-uri", "file://#{path}"], output: Process::Redirect::Pipe)
+    if process.wait.success?
+      puts "Success: set the desktop background to #{url}"
+    else
+      puts process.output.gets_to_end
+      puts "Something went wrong."
+    end
+
   end
 
 end
